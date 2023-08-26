@@ -42,21 +42,54 @@ const Operation = mongoose.model("Operation", operationSchema);
 app.use(express.json());
 app.use(cors());
 
+const samples = [
+  { path: "/5/plus/3", question: "5+3", answer: 8 },
+  { path: "/3/minus/5", question: "3-5", answer: -2 },
+  { path: "/3/minus/5/plus/8", question: "3-5+8", answer: 6 },
+  { path: "/3/into/5/plus/8/into/6", question: "3*5+8*6", answer: 63 },
+];
+
+function generateSampleRows() {
+  let rows = "";
+  samples.forEach((sample) => {
+    rows += `<tr><td>${sample.path}</td><td>${sample.question}</td><td>${sample.answer}</td></tr>`;
+  });
+  return rows;
+}
 app.get("/", (req, res) => {
-  const endpoints = [
-    "/history",
-    "/5/plus/3",
-    "/3/minus/5",
-    "/3/minus/5/plus/8",
-    "/3/into/5/plus/8/into/6",
-  ];
-  res.json({ endpoints });
+  let html = `
+    <h1>GET Endpoint Samples</h1>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Question</th>
+          <th>Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${generateSampleRows()}
+      </tbody>
+    </table>
+  `;
+  res.send(html);
 });
 
 app.get("/history", async (req, res) => {
   try {
     const history = await Operation.find().limit(20).sort({ createdAt: -1 });
-    res.json(history);
+    let html = "<h1>Operation History</h1>";
+    html +=
+      '<table style="border-collapse: collapse; width: 50%; margin: 0 auto; text-align: center;">';
+    html +=
+      '<tr style="background-color: #A9A9A9;"><th style="padding: 10px; border: 1px solid #dddddd;">Question</th><th style="padding: 10px; border: 1px solid #dddddd;">Answer</th></tr>';
+
+    history.forEach((sample) => {
+      html += `<tr><td style="padding: 8px; border: 1px solid #dddddd;">${sample.question}</td><td style="padding: 8px; border: 1px solid #dddddd;">${sample.answer}</td></tr>`;
+    });
+
+    html += "</table>";
+    res.send(html);
   } catch (error) {
     res.status(500).json({ error: "Error fetching history" });
   }
@@ -70,7 +103,7 @@ function performOperation(operand1, operator, operand2) {
       return operand1 - operand2;
     case "into":
       return operand1 * operand2;
-    case "divide":
+    case "by":
       return operand1 / operand2;
     default:
       throw new Error("Invalid operator.");
@@ -80,7 +113,7 @@ function performOperation(operand1, operator, operand2) {
 function applyBodmasRule(calculationArray) {
   const precedence = {
     into: 2,
-    divide: 2,
+    by: 2,
     plus: 1,
     minus: 1,
   };
@@ -137,7 +170,7 @@ app.get("/:calculation(*)", async (req, res) => {
     into: "*",
     plus: "+",
     minus: "-",
-    divide: "/",
+    by: "/",
   };
 
   let expression = "";
